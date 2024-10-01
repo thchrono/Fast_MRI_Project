@@ -1,0 +1,26 @@
+import torch
+import torch.fft as fft
+
+def calculate_k_space(images):
+    # convert the images to PyTorch tensors
+    images_tensor = torch.as_tensor(images)
+
+    # apply 2D Fourier transform along the spatial dimensions
+    k_space = fft.fftn(images_tensor, dim=(-2, -1))
+
+    # shift the zero frequency component to the center
+    k_space = fft.fftshift(k_space, dim=(-2, -1))
+
+    return k_space
+
+def calculate_partial_k_space(k_space, M):
+    # perform the partial k-space calculation
+    partial_k_space = torch.mul(k_space, M)
+
+    return partial_k_space
+
+def accelarate_MRI(partial_k_space):
+    # apply inverse 2D Fourier transform along the spatial dimensions
+    acc_MRI = fft.ifftn(partial_k_space, dim=(-2, -1))
+
+    return acc_MRI
