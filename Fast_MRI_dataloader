@@ -1,0 +1,87 @@
+import torch
+from torch.utils.data import Dataset,DataLoader
+import glob
+import numpy as np
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+
+
+# fast MRI dataset class
+class FastMRIDataset(Dataset):
+    # initialize the dataset
+    def __init__(self, dataset_split, data_directory):
+        # save the input parameters
+        self.dataset_split = dataset_split
+        self.data_directory = data_directory
+
+        # fetch all file paths for the given split
+        self.file_list = glob.glob(f"{data_directory}/{dataset_split}/*.npz")
+
+    # return the number of items in the dataset
+    def __len__(self):
+        return len(self.file_list) * 5  # multiply by 5 because each file contains 5 slices
+
+    # retrieve a single item from the dataset
+    def __getitem__(self, index):
+        # determine which file to load based on index
+        file_path = self.file_list[index // 5]
+        data = np.load(file_path)
+
+        # load the k-space, mask, and ground truth from the file
+        k_space_data = data['kspace']
+        mask = data['M']
+        ground_truth = data['gt']
+
+        # select one of the 5 slices from the file
+        k_space_data = k_space_data[index % 5, :, :]
+        ground_truth = ground_truth[index % 5, :, :]
+
+        return k_space_data, mask, ground_truth
+
+
+# dataloader creation for fast MRI dataset
+def get_dataloaders(data_directory, batch_size):
+    train_dataset = FastMRIDataset("train", data_directory)
+    test_dataset = FastMRIDataset("test", data_directory)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=False)
+
+    return train_loader, test_loader
+
+
+# test the functionality of the dataloaders
+if __name__ == "__main__":
+    # define parameters
+    data_directory = './data/'
+    batch_size = 4
+
+    # create dataloaders for training and testing
+    train_loader, test_loader = get_dataloaders(data_directory, batch_size)
+
+    # iterate through the test dataset
+    for i, (k_space_data, mask, ground_truth) in enumerate(tqdm(test_loader)):
+        continue  # just a placeholder to verify if loading works correctly
+
+    # %% plot the last example
+    k_space_log = torch.log(torch.abs(k_space_data[0, :, :]) + 1e-20)
+
+    # plot the k-space, mask, and ground truth
+    plt.figure(figsize=(10, 10))
+
+    plt.subplot(1, 3, 1)
+    plt.imshow(k_space_log, vmin=-2.3, interpolation='nearest')
+    plt.xticks([]), plt.yticks([])  # remove axis ticks
+    plt.title('Partial k-space')
+
+    plt.subplot(1, 3, 2)
+    plt.imshow(mask[0, :, :], interpolation='nearest')
+    plt.xticks([]), plt.yticks([])  # remove axis ticks
+    plt.title('Mask')
+
+    plt.subplot(1, 3, 3)
+    plt.imshow(ground_truth[0, :, :], cmap='gray')
+    plt.xticks([]), plt.yticks([])  # remove axis ticks
+    plt.title('Ground truth')
+
+    plt.show()
