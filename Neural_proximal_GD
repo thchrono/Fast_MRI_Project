@@ -1,0 +1,93 @@
+# %% imports
+# libraries
+import torch
+import torch.nn as nn
+import torch.fft as fft
+import ConvNet
+
+# set device to cuda
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# load the ConvNet model
+conv_net_model1 = ConvNet.conv_net()
+conv_net_model2 = ConvNet.conv_net()
+conv_net_model3 = ConvNet.conv_net()
+conv_net_model4 = ConvNet.conv_net()
+conv_net_model5 = ConvNet.conv_net()
+
+# set requires_grad to True for all parameters in each ConvNet model
+# this essentially makes to ConvNet instances trainable
+for param in conv_net_model1.parameters():
+    param.requires_grad = True
+
+for param in conv_net_model2.parameters():
+    param.requires_grad = True
+
+for param in conv_net_model3.parameters():
+    param.requires_grad = True
+
+for param in conv_net_model4.parameters():
+    param.requires_grad = True
+
+for param in conv_net_model5.parameters():
+    param.requires_grad = True
+
+class prox_net(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.prox_operator1 = conv_net_model1
+        self.prox_operator2 = conv_net_model2
+        self.prox_operator3 = conv_net_model3
+        self.prox_operator4 = conv_net_model4
+        self.prox_operator5 = conv_net_model5
+
+    def forward(self, kspace, M, lamda):
+        # convert input to tensor if it is not already
+        if not torch.is_tensor(kspace):
+            kspace = torch.tensor(kspace)
+
+        # first unfold
+        fy1 = kspace
+        fx1 = fy1.clone()
+        fx1 = fft.ifftn(fx1, dim=(-2, -1))
+        fx1 = fx1.abs()
+        x = self.prox_operator1(fx1)
+        fx2 = fft.fftn(x, dim=(-2, -1))
+        fx2 = fx2 - lamda * M * fx2
+
+        # second unfold
+        fy2 = lamda * kspace
+        fx2 = fx2 + fy2
+        fx2 = fft.ifftn(fx2, dim=(-2, -1))
+        fx2 = fx2.abs()
+        x = self.prox_operator2(fx2)
+        fx3 = fft.fftn(x, dim=(-2, -1))
+        fx3 = fx3 - lamda * M * fx3
+
+        # third unfold
+        fy3 = lamda * kspace
+        fx3 = fx3 + fy3
+        fx3 = fft.ifftn(fx3, dim=(-2, -1))
+        fx3 = fx3.abs()
+        x = self.prox_operator3(fx3)
+        fx4 = fft.fftn(x, dim=(-2, -1))
+        fx4 = fx4 - lamda * M * fx4
+
+        # fourth unfold
+        fy4 = lamda * kspace
+        fx4 = fx4 + fy4
+        fx4 = fft.ifftn(fx4, dim=(-2, -1))
+        fx4 = fx4.abs()
+        x = self.prox_operator4(fx4)
+        fx5 = fft.fftn(x, dim=(-2, -1))
+        fx5 = fx5 - lamda * M * fx5
+
+        # fifth unfold
+        fy5 = lamda * kspace
+        fx5 = fx5 + fy5
+        fx5 = fft.ifftn(fx5, dim=(-2, -1))
+        fx5 = fx5.abs()
+        x = self.prox_operator5(fx5)
+
+        return x
+
